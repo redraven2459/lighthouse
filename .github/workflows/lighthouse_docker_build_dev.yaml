@@ -1,0 +1,52 @@
+name: Build Lighthouse Docker Images (Dev)
+run-name: ${{ github.actor }} is building the Lighthouse Docker Images (Dev)
+on:
+  push:
+    branches:
+      - dev
+    paths:
+      - "Lighthouse-Client/**"
+      - "Lighthouse-Server/**"
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  Build_Lighthouse_Server:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout GitHub Action"
+        uses: actions/checkout@main
+      - name: "Login to GHCR"
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{github.actor}}
+          password: ${{secrets.GITHUB_TOKEN}}
+      - name: Set commit tag
+        run: echo "IMAGE_TAG=sha-${GITHUB_SHA::7}" >> $GITHUB_ENV
+      - name: "Build image"
+        run: |
+          docker build "Lighthouse-Server" --tag ghcr.io/redraven2459/lighthouse_server:${{ env.IMAGE_TAG }} --tag ghcr.io/redraven2459/lighthouse_server:latest_dev
+          docker push ghcr.io/redraven2459/lighthouse_server:${{ env.IMAGE_TAG }}
+          docker push ghcr.io/redraven2459/lighthouse_server:latest_dev
+
+  Build_Lighthouse_Client:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout GitHub Action"
+        uses: actions/checkout@main
+      - name: "Login to GHCR"
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{github.actor}}
+          password: ${{secrets.GITHUB_TOKEN}}
+      - name: Set commit tag
+        run: echo "IMAGE_TAG=sha-${GITHUB_SHA::7}" >> $GITHUB_ENV
+      - name: "Build image"
+        run: |
+          docker build "Lighthouse-Client" --tag ghcr.io/redraven2459/lighthouse_client:${{ env.IMAGE_TAG }} --tag ghcr.io/redraven2459/lighthouse_client:latest_dev
+          docker push ghcr.io/redraven2459/lighthouse_client:${{ env.IMAGE_TAG }}
+          docker push ghcr.io/redraven2459/lighthouse_client:latest_dev

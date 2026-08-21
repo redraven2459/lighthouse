@@ -1,0 +1,29 @@
+{
+    "apiKeyIndex": 4,
+    "audioQuality": "High",
+    "audioQualityPriority": [
+        "High",
+        "HiFi",
+        "Normal"
+    ],
+    "checkExist": true,
+    "downloadDelay": true,
+    "downloadPath": "",
+    "downloadVideos": true,
+    "includeEP": true,
+    "language": "0",
+    "lyricFile": true,
+    "multiThread": true,
+    "playlistFolderFormat": "Playlist/{PlaylistName} [{PlaylistUUID}]",
+    "requestIntervalSeconds": 30.0,
+    "saveAlbumInfo": false,
+    "saveAsFlac": true,
+    "saveCovers": true,
+    "showProgress": true,
+    "showTrackInfo": true,
+    "albumFolderFormat": "/Music/{AlbumArtistName} - {AlbumArtistID}/{AlbumTitle} - {AlbumID}",
+    "trackFileFormat": "{TrackNumber} - {TrackTitle} - {TrackID} - {StreamQuality}",
+    "usePlaylistFolder": false,
+    "videoFileFormat": "{ArtistName} - {ArtistID}/{VideoTitle} - {VideoID}",
+    "videoQuality": "P1080"
+}

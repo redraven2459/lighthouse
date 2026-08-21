@@ -1,0 +1,18 @@
+services:
+  lighthouse_server:
+    image: ghcr.io/redraven2459/lighthouse_server:latest
+    #user: "<UID>:<GID>"
+    ports:
+      - "9990:8000"
+      - "9991:9991"
+    volumes:
+      - ./data:/srv/Data
+    env_file:
+      - .env
+    restart: unless-stopped
+    
+  lighthouse_client:
+    image: ghcr.io/redraven2459/lighthouse_client:latest
+    ports:
+      - "9992:80"
+    restart: unless-stopped

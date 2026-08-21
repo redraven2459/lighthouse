@@ -1,0 +1,31 @@
+[project]
+site_name = "Lighthouse"
+site_description = "Documentation for the Lighthouse project"
+site_author = "RedRaven2459"
+
+docs_dir = "source"
+site_dir = "site"
+
+site_url = "https://redraven2459.github.io/lighthouse/"
+
+repo_url = "https://github.com/redraven2459/lighthouse"
+repo_name = "redraven2459/lighthouse"
+
+nav = [
+    { "Home" = "index.md" },
+]
+
+[project.theme]
+features = [
+    "navigation.tabs",
+    "navigation.sections",
+    "navigation.path",
+    "navigation.top",
+    "search.highlight",
+    "content.code.copy",
+]
+
+[project.markdown_extensions]
+admonition = {}
+pymdownx.details = {}
+pymdownx.superfences = {}

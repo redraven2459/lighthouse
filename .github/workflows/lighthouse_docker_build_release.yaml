@@ -1,0 +1,47 @@
+name: Build Lighthouse Docker Images (Release)
+run-name: ${{ github.actor }} is building the Lighthouse Docker Images (Release)
+on:
+  release:
+    types:
+      - "published"
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  Build_Lighthouse_Server:
+    runs-on: ubuntu-latest
+    if: github.event.release.prerelease == false
+    steps:
+      - name: "Checkout GitHub Action"
+        uses: actions/checkout@main
+      - name: "Login to GHCR"
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{github.actor}}
+          password: ${{secrets.GITHUB_TOKEN}}
+      - name: "Build image"
+        run: |
+          docker build "Lighthouse-Server" --tag ghcr.io/redraven2459/lighthouse_server:${{ github.event.release.tag_name }} --tag ghcr.io/redraven2459/lighthouse_server:latest
+          docker push ghcr.io/redraven2459/lighthouse_server:${{ github.event.release.tag_name }}
+          docker push ghcr.io/redraven2459/lighthouse_server:latest
+
+  Build_Lighthouse_Client:
+    runs-on: ubuntu-latest
+    if: github.event.release.prerelease == false
+    steps:
+      - name: "Checkout GitHub Action"
+        uses: actions/checkout@main
+      - name: "Login to GHCR"
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{github.actor}}
+          password: ${{secrets.GITHUB_TOKEN}}
+      - name: "Build image"
+        run: |
+          docker build "Lighthouse-Client" --tag ghcr.io/redraven2459/lighthouse_client:${{ github.event.release.tag_name }} --tag ghcr.io/redraven2459/lighthouse_client:latest
+          docker push ghcr.io/redraven2459/lighthouse_client:${{ github.event.release.tag_name }}
+          docker push ghcr.io/redraven2459/lighthouse_client:latest
