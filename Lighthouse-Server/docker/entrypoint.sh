@@ -1,9 +1,9 @@
 #!/bin/sh
 set -e
 
-#mkdir -p "/srv/Data/Tidekeeper"
-#mkdir -p "/srv/Data/Cache"
-#mkdir -p "/srv/Data/Music"
+mkdir -p "/srv/Data/Tidekeeper"
+mkdir -p "/srv/Data/Cache"
+mkdir -p "/srv/Data/Music"
 
 INITIAL_1="/srv/InitialData/Tidekeeper/.tidal-dl.json"
 FINAL_1="/srv/Data/Tidekeeper/.tidal-dl.json"
