@@ -4,11 +4,11 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:lighthouse_client/components/responsive_scaffold.dart';
-import 'package:lighthouse_client/pages/empty.dart';
-import 'package:lighthouse_client/pages/artist.dart';
-import 'package:lighthouse_client/pages/search.dart';
-import 'package:lighthouse_client/pages/settings.dart';
-import 'package:lighthouse_client/pages/tasks.dart';
+import 'package:lighthouse_client/pages/core/empty.dart';
+import 'package:lighthouse_client/pages/core/artist.dart';
+import 'package:lighthouse_client/pages/core/search.dart';
+import 'package:lighthouse_client/pages/core/settings.dart';
+import 'package:lighthouse_client/pages/core/tasks.dart';
 import 'package:lighthouse_client/utils/system_ui_utils.dart';
 
 class NavDestination {

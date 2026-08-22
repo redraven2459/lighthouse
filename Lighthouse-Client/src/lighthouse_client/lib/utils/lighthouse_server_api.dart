@@ -87,7 +87,7 @@ class LighthouseServerAPI {
             if (databaseVersion.majorVersion != rootResponse.databaseVersionServer.majorVersion) {health = false;}
             if (databaseVersion.minorVersion > rootResponse.databaseVersionServer.minorVersion) {health = false;}
 
-            if (timestamp.difference(rootResponse.timestampServer).abs() > Duration(seconds: 15)) {health = false;}
+            if (timestamp.difference(rootResponse.timestampServer).abs() > Duration(seconds: 60)) {health = false;}
 
             if (health == false) {
               ScaffoldMessenger.of(context).showSnackBar(

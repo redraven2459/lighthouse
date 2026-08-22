@@ -75,7 +75,7 @@ class _SettingsPageState extends State<SettingsPage> {
       if (databaseVersion.majorVersion != databaseVersionServer!.majorVersion) {health = false;}
       if (databaseVersion.minorVersion > databaseVersionServer!.minorVersion) {health = false;}
 
-      if (timestamp.difference(timestampServer!).abs() > Duration(seconds: 15)) {health = false;}
+      if (timestamp.difference(timestampServer!).abs() > Duration(seconds: 60)) {health = false;}
 
       if (health) {return "healthy";}
       return "error";

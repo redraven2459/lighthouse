@@ -12,5 +12,5 @@ Welcome to the Lighthouse documentation.
 ### Run Lighthouse
 
 ```bash
-docker compose up -d
+docker compose up -d 
 ```
