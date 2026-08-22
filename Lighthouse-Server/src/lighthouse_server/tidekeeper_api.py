@@ -44,7 +44,7 @@ class TidekeeperAPI():
                 time.sleep(self.nextQueryTime - time.time())
 
             if (self.settings.tidekeeper_path == ""):
-                proc = subprocess.Popen(["python", "-m", "tidekeeper", "-c", self.settings.tidekeeper_config_path, *runArgs], stdout=subprocess.PIPE, text=True)
+                proc = subprocess.Popen(["tidekeeper", "-c", self.settings.tidekeeper_config_path, *runArgs], stdout=subprocess.PIPE, text=True)
             else:
                 proc = subprocess.Popen(["python", self.settings.tidekeeper_path, "-c", self.settings.tidekeeper_config_path, *runArgs], stdout=subprocess.PIPE, text=True)
 
