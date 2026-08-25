@@ -1,16 +1,7 @@
 # Lighthouse
 
-Welcome to the Lighthouse documentation.
+Welcome to Lighthouse!
 
+Lighthouse is a framework for music hoarding and acquisition - powered by Tidekeeper.
 
-## Quick Start
-### Requirements
-
-- Docker
-- Docker Compose
-
-### Run Lighthouse
-
-```bash
-docker compose up -d 
-```
+Proceed to [Getting Started](getting_started/installation.md).
