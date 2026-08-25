@@ -45,16 +45,6 @@ class _MainAppState extends State<MainApp> {
 
   @override
   Widget build(BuildContext context) {
-    const List<NavigationDestination> navBarDestinations = [
-      NavigationDestination(icon: Icon(Icons.search), label: "Home"),
-      NavigationDestination(icon: Icon(Icons.dashboard), label: "Tasks"),
-      NavigationDestination(icon: Icon(Icons.settings), label: "Settings"),
-    ];
-    const List<NavigationRailDestination> navRailDestinations = [
-      NavigationRailDestination(icon: Icon(Icons.search), label: Text("Home")),
-      NavigationRailDestination(icon: Icon(Icons.dashboard), label: Text("Tasks")),
-      NavigationRailDestination(icon: Icon(Icons.settings), label: Text("Settings")),
-    ];
     return MaterialApp.router(
       title: "Lighthouse",
       debugShowCheckedModeBanner: false,

@@ -10,9 +10,25 @@ site_url = "https://redraven2459.github.io/lighthouse/"
 
 repo_url = "https://github.com/redraven2459/lighthouse"
 repo_name = "redraven2459/lighthouse"
+edit_uri = "https://github.com/redraven2459/lighthouse/edit/main/docs/source"
 
 nav = [
     { "Home" = "index.md" },
+    { "Getting Started" = [
+      { "Installation" = "getting_started/installation.md" },
+      { "Configuration" = "getting_started/configuration.md" },
+      { "Usage" = "getting_started/usage.md" },
+    ]},
+    { "Roadmap" = [
+      { "Roadmap" = "roadmap/roadmap.md" },
+      { "Stage 1: Functional Completion" = "roadmap/stage_1.md" },
+    ]},
+    { "Contribute" = [
+      { "Guidelines" = "contribute/guidelines.md" },
+      { "Project Overview" = "contribute/project_overview.md" },
+      { "Recommended Development Environment Setup" = "contribute/recommended_development_environment_setup.md" },
+    ]},
+
 ]
 
 [project.theme]
@@ -21,11 +37,34 @@ features = [
     "navigation.sections",
     "navigation.path",
     "navigation.top",
+    "navigation.footer",
     "search.highlight",
     "content.code.copy",
+    "content.code.select",
+    "content.code.annotate",
 ]
+
+[project.theme.icon]
+logo = "simple/lighthouse"
+repo = "simple/lighthouse"
+
+[[project.theme.palette]]
+scheme = "default"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+scheme = "slate"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to light mode"
 
 [project.markdown_extensions]
 admonition = {}
 pymdownx.details = {}
 pymdownx.superfences = {}
+pymdownx.blocks.caption = {}
+attr_list = {}
+
+[[project.extra.social]]
+icon = "fontawesome/brands/github"
+link = "https://github.com/redraven2459/"
