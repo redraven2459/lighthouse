@@ -65,19 +65,23 @@ class _TaskCardState extends State<TaskCard> with AutomaticKeepAliveClientMixin 
 
   void pollTask({required BuildContext context}) async {
     if (_expanded) {
+      if (!mounted || !_scrollController.hasClients) {return;}
       if (![TaskStatusCode.complete, TaskStatusCode.interrupted].contains(widget.task.statusCode)) {
+        final bool scrollRequired = _scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 50;
         Task? polledTask = await LighthouseServerAPI().getTask(context: context, id: widget.task.id);
         if (polledTask != null) {
           widget.updateTaskCallback(polledTask);
-          _scrollToBottomStdout();
+          _scrollToBottomStdout(scrollRequired: scrollRequired);
         }
       }
     }
   }
 
-  void _scrollToBottomStdout() {
+  void _scrollToBottomStdout({bool scrollRequired = true}) {
+    if (!mounted || !_scrollController.hasClients) {return;}
+    if (scrollRequired == false) {return;}
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_scrollController.hasClients) return;
+      if (!mounted || !_scrollController.hasClients) {return;}
       _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
     });
   }
@@ -92,6 +96,7 @@ class _TaskCardState extends State<TaskCard> with AutomaticKeepAliveClientMixin 
       TaskStatusCode.complete => Colors.blue,
       TaskStatusCode.accepted => Colors.green,
       TaskStatusCode.interrupted => Colors.red,
+      TaskStatusCode.error => Colors.red,
       TaskStatusCode.waitingForTidalApiAuth => Colors.orange,
       TaskStatusCode.waitingForTidekeeperAuth => Colors.orange,
       _=> Colors.yellow,

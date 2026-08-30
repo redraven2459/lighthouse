@@ -1,4 +1,4 @@
-import threading
+import threading, traceback
 from typing import Any
 from datetime import datetime, UTC
 from dataclasses import dataclass, field
@@ -31,8 +31,69 @@ class TaskHandler():
             return
         self._initialized = True
 
+        self.interrupt_lock = threading.Lock()
         self.stop_event = threading.Event()
         self.task_threads: dict[int, TaskThread] = {}
+
+    def set_task_complete(self, task_id):
+        with Session(DatabaseAPI().engine) as session:
+            # Get task
+            task = session.exec(select(Task).where(Task.id == task_id)).one()
+            # Clear task message
+            task.message = ""
+            # Set TaskStatusCode to complete
+            task.status_code = TaskStatusCode.COMPLETE
+            # Set complete time
+            task.complete_time = datetime.now(UTC)
+            # Write task to db
+            session.commit()
+        # Remove thread from task_threads
+        self.task_threads.pop(task_id)
+        return
+
+    def set_task_interrupted(self, task_id):
+        with self.interrupt_lock:
+            with Session(DatabaseAPI().engine) as session:
+                # Get task
+                task = session.exec(select(Task).where(Task.id == task_id)).one()
+                if task.status_code != TaskStatusCode.INTERRUPTED:
+                    # Set task message
+                    task.message = ""
+                    # Set TaskStatusCode to error
+                    task.status_code = TaskStatusCode.INTERRUPTED
+                    # Update stdout
+                    task.stdout.append("---INTERRUPTED---")
+                    # Set complete time
+                    task.complete_time = datetime.now(UTC)
+                    # Write task to db
+                    session.commit()
+                    # Remove thread from task_threads
+                    #self.task_threads.pop(task_id)
+        return
+
+    def set_task_error(self, task_id, e):
+        with Session(DatabaseAPI().engine) as session:
+            # Get task
+            task = session.exec(select(Task).where(Task.id == task_id)).one()
+            # Set task message
+            task.message = str(e) + "\n" + traceback.format_exc()
+            # Set TaskStatusCode to error
+            task.status_code = TaskStatusCode.ERROR
+            # Set complete time
+            task.complete_time = datetime.now(UTC)
+            # Write task to db
+            session.commit()
+        # Remove thread from task_threads
+        self.task_threads.pop(task_id)
+        return
+
+
+
+    def execute_task(self, target, task_id, *args, **kwargs):
+        try:
+            return target(task_id, *args, **kwargs)
+        except Exception as e:
+            self.set_task_error(task_id, e)
 
     def start_task(self, target, *args, description, **kwargs):
         # Add task to DB
@@ -43,7 +104,7 @@ class TaskHandler():
             session.refresh(task)
 
         # Create and start task thread
-        t = threading.Thread(target=target, args=(task.id, *args), kwargs=kwargs)
+        t = threading.Thread(target=self.execute_task, args=(target, task.id, *args), kwargs=kwargs)
         self.task_threads[task.id] = TaskThread(database_id=task.id, thread=t)
         self.task_threads[task.id].thread.start()
         return task.id
@@ -95,50 +156,8 @@ class TaskHandler():
             task = session.exec(select(Task).where(Task.id == task_id)).one()
             return task.stdout
 
-    def set_task_complete(self, task_id):
-        with Session(DatabaseAPI().engine) as session:
-            # Get task
-            task = session.exec(select(Task).where(Task.id == task_id)).one()
-            # Clear task message
-            task.message = ""
-            # Set TaskStatusCode to complete
-            task.status_code = TaskStatusCode.COMPLETE
-            # Set complete time
-            task.complete_time = datetime.now(UTC)
-            # Write task to db
-            session.commit()
-        # Remove thread from task_threads
-        self.task_threads.pop(task_id)
-        return
-
     def startup(self):
         with Session(DatabaseAPI().engine) as session:
-
-            # Ensure entries for 404 artists and albums exist
-            try:
-                artist_dict = {
-                    "tidal_id": 0,
-                    "name": "404",
-                    "sync_time": datetime.time(UTC),
-                }
-                db_artist = Artist.model_validate(artist_dict)
-                session.add(db_artist)
-                session.commit()
-            except:
-                pass
-            try:
-                album_dict = {
-                    "tidal_id": 0,
-                    "name": "404",
-                    "primary_artist_tidal_id": 0,
-                    "sync_time": datetime.time(UTC),
-                }
-                db_album = Album.model_validate(album_dict)
-                session.add(db_album)
-                session.commit()
-            except:
-                pass
-
             # Check for incomplete JobProcessing entries (i.e: leftover claims from an ungraceful shutdown)
             incomplete_jobs = session.exec(select(JobProcessing)).all()
             if incomplete_jobs != []:
@@ -150,7 +169,7 @@ class TaskHandler():
                 print("Database repair successful")
 
             # Check for incomplete tasks
-            incomplete_tasks = session.exec(select(Task).where((Task.status_code != TaskStatusCode.COMPLETE) & (Task.status_code != TaskStatusCode.INTERRUPTED))).all()
+            incomplete_tasks = session.exec(select(Task).where((Task.status_code != TaskStatusCode.COMPLETE), (Task.status_code != TaskStatusCode.INTERRUPTED), (Task.status_code != TaskStatusCode.ERROR))).all()
             if len(incomplete_tasks) > 0:
                 print("During startup lighthouse_server identified tasks that were interrupted gracelessly. The database will need to be repaired.")
                 for task in incomplete_tasks:

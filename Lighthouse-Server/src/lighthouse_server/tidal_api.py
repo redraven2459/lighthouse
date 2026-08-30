@@ -66,13 +66,13 @@ class TidalAPI():
                 data = json.load(file)
                 try:
                     self.access_token = data["access_token"]
-                except:
+                except Exception:
                     pass
                 try:
                     self.refresh_token = data["refresh_token"]
-                except:
+                except Exception:
                     pass
-        except:
+        except Exception:
             pass
 
     def getAccessToken(self, task_id, forceRefresh = False):
@@ -161,7 +161,7 @@ class TidalAPI():
             self.access_token = r.json()["access_token"]
             try:
                 self.refresh_token = r.json()["refresh_token"]
-            except:
+            except Exception:
                 self.refresh_token = None
         else:
             data = {"grant_type": "refresh_token", "refresh_token": self.refresh_token, "client_id": self.settings.tidal_api_client_id}
