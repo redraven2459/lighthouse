@@ -60,7 +60,6 @@ class _TaskCardState extends State<TaskCard> with AutomaticKeepAliveClientMixin 
     } else {
       _pollTimer?.cancel();
     }
-    if (_expanded) {_scrollToBottomStdout();}
   }
 
   void pollTask({required BuildContext context}) async {
@@ -78,7 +77,6 @@ class _TaskCardState extends State<TaskCard> with AutomaticKeepAliveClientMixin 
   }
 
   void _scrollToBottomStdout({bool scrollRequired = true}) {
-    if (!mounted || !_scrollController.hasClients) {return;}
     if (scrollRequired == false) {return;}
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_scrollController.hasClients) {return;}

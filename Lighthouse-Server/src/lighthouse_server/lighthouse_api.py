@@ -55,7 +55,6 @@ class LighthouseAPI():
         string = string.replace('!', '')
         string = string.replace('@', '')
         string = string.replace(';', '')
-        string = string.replace('.', '')
         string = string.replace(',', '')
         string = string.replace('[', '')
         string = string.replace(']', '')

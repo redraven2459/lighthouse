@@ -6,8 +6,9 @@
 
 Lighthouse-Server is broadly speaking ready for public testing. During it's initial release the following bugs have been identified:
 
+- (Critical) a DB migration solution (i.e: Alembic) needs to be implemented.
 - (Significant) a logging solution needs to be implemented.
-- (Minor) the stdout output for some functions uses an inconsisistent format.
+- (Minor) the stdout output for some functions uses an inconsistent format.
 - (Minor) most "todo's" need actioning.
 
 
