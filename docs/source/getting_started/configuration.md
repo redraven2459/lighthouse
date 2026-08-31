@@ -28,10 +28,10 @@ Lighthouse requires a client-id token and redirect-uri to be created via Tidal's
 
 !!! example "URI Examples"
     - If deploying via http (i.e: no reverse proxy) and clients will access Lighthouse-Server at ```192.168.1.50``` and the desired redirect port is ```9001``` it would be set to ```http://192.168.1.50:9001/callback```.
-    - If deploying via https (i.e: via a reverse proxy that upgrades all requests to https) and clients will access it at ```lighthouse.mydomain.com``` and the desired redirect port is ```9005``` this would be set to ```https://lighthouse.mydomain.com:9005/callback```.
+    - If deploying via https (i.e: via a reverse proxy that upgrades all requests to https) and clients will access Lighthouse-Server at ```server.lighthouse.mydomain.com``` and the desired redirect port is ```9005``` this would be set to ```https://server.lighthouse.mydomain.com:9005/callback```.
 
 !!! note "URI Redirects"
-    It can be beneficial setting both the standard and IP versions of the address. I.e: using 'Redirect URI 1' for ```http://192.168.1.50/callback``` and 'Redirect URI 2' for ```https://lighthouse.mydomain.com/callback```.
+    It can be beneficial setting both the standard and IP versions of the address. I.e: using 'Redirect URI 1' for ```http://192.168.1.50:9001/callback``` and 'Redirect URI 2' for ```https://lighthouse.mydomain.com:9001/callback```.
 
 
 
