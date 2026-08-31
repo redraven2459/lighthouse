@@ -9,13 +9,13 @@ COPY alembic ./alembic
 COPY src ./src
 RUN python -m pip install --no-cache-dir --break-system-packages .
 
+COPY docker/entrypoint.sh ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh
+
 WORKDIR /srv
 RUN git clone https://github.com/redraven2459/tidekeeper.git
 WORKDIR /srv/tidekeeper/TIDALDL-PY
 RUN python -m pip install --no-cache-dir --break-system-packages -e .
-
-COPY docker/entrypoint.sh ./entrypoint.sh
-RUN chmod +x ./entrypoint.sh
 
 WORKDIR /srv/InitialData/Tidekeeper
 COPY docker/.tidal-dl.json.example ./.tidal-dl.json
