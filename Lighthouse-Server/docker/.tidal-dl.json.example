@@ -24,6 +24,6 @@
     "albumFolderFormat": "/Music/{AlbumArtistName} - {AlbumArtistID}/{AlbumTitle} - {AlbumID}",
     "trackFileFormat": "{TrackNumber} - {TrackTitle} - {TrackID} - {StreamQuality}",
     "usePlaylistFolder": false,
-    "videoFileFormat": "{ArtistName} - {ArtistID}/{VideoTitle} - {VideoID}",
+    "videoFileFormat": "{VideoArtistName} - {VideoArtistID}/{VideoTitle} - {VideoID}",
     "videoQuality": "P1080"
 }

@@ -6,8 +6,10 @@
 
 Lighthouse-Server is broadly speaking ready for public testing. During it's initial release the following bugs have been identified:
 
-- (Critical) some artists return 404 when queries from Tidal. The source of this error is currently unknown but appeared when scraping Kygo - 5891908.
-- (Major) some functions do not log what they are scraping. This makes it challenging to debug faulty functionality.
+- (Critical) a DB migration solution (i.e: Alembic) needs to be implemented.
+- (Significant) a logging solution needs to be implemented.
+- (Minor) the stdout output for some functions uses an inconsistent format.
+- (Minor) most "todo's" need actioning.
 
 
 ## Lighthouse-Client

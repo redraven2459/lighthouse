@@ -44,7 +44,7 @@ Open the ```.env``` file downloaded during installation (i.e: ```{path}/lighthou
 3. Set ```LIGHTHOUSE_SERVER_TIDAL_API_REDIRECT_ADDRESS``` to the desired address (i.e: ```"192.168.1.50"```).
 4. Set ```LIGHTHOUSE_SERVER_TIDAL_API_REDIRECT_PORT``` to the desired port (i.e: ```9001```).
 5. Ignore ```LIGHTHOUSE_SERVER_DATA_PATH``` unless developing Lighthouse locally. If developing locally set it to whichever path you want data to be stored in.
-6. Ignore ```LIGHTHOUSE_SERVER_TIDEKEEPER_PATH``` unless you want to use a specific local installation of Tidekeeper. If you want to use a specific local installation of Tidekeeper enter the path here.
+6. Ignore ```LIGHTHOUSE_SERVER_TIDEKEEPER_PATH``` unless you want to use a custom installation of Tidekeeper. The default value uses a fork of Tidekeeper that is maintained for Lighthouse. A value of ```""``` will use the original version of Tidekeeper.
 
 ## Compose Configuration
 The default configuration for the ```compose.yaml``` file downloaded during installation works well but can be tweaked. Consider changing the following settings:
@@ -60,7 +60,7 @@ The default configuration for the ```compose.yaml``` file downloaded during inst
 
 
 !!! note
-    It can be advantageous to map the directories within /srv/Data more explicitly if your media hosting solution lives in a different filepath. For example:
+    It can be advantageous to map the directories within ```/srv/Data``` more explicitly if your media hosting solution lives in a different filepath. For example:
     ```
     volumes:
       - ./data:/srv/Data
@@ -72,7 +72,7 @@ The default configuration for the ```compose.yaml``` file downloaded during inst
     ```./data/Music/Music``` and ```./data/Music/Video``` can then be sym-linked to your desired media hosting file path.
 
 ## Tidekeeper Configuration (optional)
-The default Tidekeeper configuration created during the first run of Lighthouse works well but can be tweaked. The configuration file is created in ```/srv/Data/Tidekeeper/.tidal-dl.json``` (i.e: ```{path}/lighthouse/data/Tidekeeper.tidal-dl.json```) using the [template](https://github.com/redraven2459/lighthouse/blob/main/Lighthouse-Server/docker/.tidal-dl.json.example) available in the repository. See [Tidekeeper](https://github.com/OpenNerdz/tidekeeper) for details about further configuring this file.
+The default Tidekeeper configuration created during the first run of Lighthouse works well but can be tweaked. The configuration file is created in ```/srv/Data/Tidekeeper/.tidal-dl.json``` (i.e: ```{path}/lighthouse/data/Tidekeeper.tidal-dl.json```) using the [template](https://github.com/redraven2459/lighthouse/blob/main/Lighthouse-Server/docker/.tidal-dl.json.example) available in the repository. See [Tidekeeper](https://github.com/redraven2459/tidekeeper) for details about further configuring this file.
 
 !!! warning
     Lighthouse expects the ```albumFolderFormat```, ```trackFileFormat```, and ```videoFileFormat``` values to be as defined in the template. Changing these values will cause Lighthouse to catastrophically fail.

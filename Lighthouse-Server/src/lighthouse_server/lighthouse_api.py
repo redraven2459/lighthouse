@@ -55,7 +55,6 @@ class LighthouseAPI():
         string = string.replace('!', '')
         string = string.replace('@', '')
         string = string.replace(';', '')
-        string = string.replace('.', '')
         string = string.replace(',', '')
         string = string.replace('[', '')
         string = string.replace(']', '')
@@ -75,6 +74,21 @@ class LighthouseAPI():
             raise RuntimeError(f"Permission denied: Unable to create '{path}'.")
         except Exception as e:
             raise RuntimeError(f"An error occurred: {e}")
+
+    @staticmethod
+    def endpoint(task_id, is_endpoint):
+        if is_endpoint == False:
+            return False
+        if LighthouseAPI.breakpoint(task_id) == False:
+            TaskHandler().set_task_complete(task_id)
+        return True
+
+    @staticmethod
+    def breakpoint(task_id):
+        if TaskHandler().stop_event.is_set():
+            TaskHandler().set_task_interrupted(task_id)
+            return True
+        return False
 
     # Scrape
     def scrapeArtistCore(self, task_id, artist_tidal_id, foreground=False, monitored=False):
@@ -106,11 +120,11 @@ class LighthouseAPI():
             artistArtworkCode = None
             try:
                 artistBiographyCode = data["data"]["relationships"]["biography"]["data"]["id"]
-            except:
+            except Exception:
                 pass
             try:
                 artistArtworkCode = data["data"]["relationships"]["profileArt"]["data"][0]["id"]
-            except:
+            except Exception:
                 pass
 
             # Process metadata
@@ -164,8 +178,9 @@ class LighthouseAPI():
 
             # Process each video on this page
             videos_to_scrape_length = len(videos_to_scrape_ids)
+            video_i = 1
             for video_tidal_id in videos_to_scrape_ids:
-                TaskHandler().update_task_stdout(task_id, "Scraping videos via tidal_api (video: " + str(video_tidal_id) + ")")
+                TaskHandler().update_task_stdout(task_id, "Scraping video via tidal_api: " + str(video_tidal_id) + " (" + str(video_i) + "/" + str(videos_to_scrape_length) + ")")
                 TaskHandler().update_task_status_code(task_id, TaskStatusCode.WAITING_FOR_DATABASE_LOCK)
                 with DatabaseLock(video_tidal_id, TidalType.VIDEO):
                     TaskHandler().update_task_status_code(task_id, TaskStatusCode.ACCEPTED)
@@ -189,11 +204,19 @@ class LighthouseAPI():
                         existing_artist_tidal_ids = set(session.exec(select(Artist.tidal_id).where(Artist.tidal_id.in_(contributing_artist_tidal_ids))).all())
                     missing_artist_tidal_ids = [temp_artist_tidal_id for temp_artist_tidal_id in contributing_artist_tidal_ids if temp_artist_tidal_id not in existing_artist_tidal_ids]
                     artists_to_scrape_ids = missing_artist_tidal_ids
+                    skipped_artist_tidal_ids = []
 
                     # Ensure all artists have been scraped
                     for supporting_artist_tidal_id in artists_to_scrape_ids:
-                        TaskHandler().update_task_stdout(task_id, "Unrecognised artist contributing to video, scraping...")
-                        self.scrapeArtistCore(task_id, supporting_artist_tidal_id)
+                        TaskHandler().update_task_stdout(task_id, "Unrecognised artist (" + str(supporting_artist_tidal_id) + ") contributing to video, scraping...")
+                        try:
+                            self.scrapeArtistCore(task_id, supporting_artist_tidal_id)
+                        except Exception as e:
+                            if supporting_artist_tidal_id == primary_artist_tidal_id:
+                                raise
+                            TaskHandler().update_task_stdout(task_id, "A problem occured whilst scraping the unreognised non-primary artist. Skipping unrecognised artist. Error: " + str(e))
+                            skipped_artist_tidal_ids.append(artist_tidal_id)
+
 
                     # Set monitored by artist_tidal_id
                     with Session(DatabaseAPI().engine) as session:
@@ -217,25 +240,27 @@ class LighthouseAPI():
 
                     # Add any supporting artists
                     for supporting_artist_tidal_id in supporting_artist_tidal_ids:
-                        item_dict = {
-                            "artist_id":supporting_artist_tidal_id,
-                            "video_id": video_tidal_id
-                        }
-                        try:
-                            with Session(DatabaseAPI().engine) as session:
-                                db_savl = SupportingArtistVideoLink.model_validate(item_dict)
-                                session.add(db_savl)
-                                session.commit()
-                        except:
-                            pass
+                        if (supporting_artist_tidal_id not in skipped_artist_tidal_ids):
+                            item_dict = {
+                                "artist_id":supporting_artist_tidal_id,
+                                "video_id": video_tidal_id
+                            }
+                            try:
+                                with Session(DatabaseAPI().engine) as session:
+                                    db_savl = SupportingArtistVideoLink.model_validate(item_dict)
+                                    session.add(db_savl)
+                                    session.commit()
+                            except Exception:
+                                pass
+                video_i = video_i + 1
                 # breakpoint
-                if TaskHandler().stop_event.is_set():
+                if LighthouseAPI.breakpoint(task_id):
                     return
 
             # Check for additional pages
             try:
                 next_cursor = data["links"]["meta"]["nextCursor"]
-            except:
+            except Exception:
                 break
 
             # Prepare for next page
@@ -243,7 +268,7 @@ class LighthouseAPI():
             page = page + 1
 
             # breakpoint
-            if TaskHandler().stop_event.is_set():
+            if LighthouseAPI.breakpoint(task_id):
                 return
 
         # Update artists's videos_sync_time
@@ -253,9 +278,7 @@ class LighthouseAPI():
             session.commit()
 
         # Set task complete if required
-        if endpoint:
-            TaskHandler().set_task_complete(task_id)
-        return
+        LighthouseAPI.endpoint(task_id, is_endpoint=endpoint)
 
     def scrapeAlbumTracks(self, task_id, album_tidal_id, endpoint=False):
         TaskHandler().update_task_stdout(task_id, "Scraping album tracks via tidal_api (album: " + str(album_tidal_id) + ")")
@@ -318,7 +341,7 @@ class LighthouseAPI():
             # Check for additional pages
             try:
                 next_cursor = data["links"]["meta"]["nextCursor"]
-            except:
+            except Exception:
                 break
 
             # Prepare for next page
@@ -326,7 +349,7 @@ class LighthouseAPI():
             page = page + 1
 
             # breakpoint
-            if TaskHandler().stop_event.is_set():
+            if LighthouseAPI.breakpoint(task_id):
                 return
 
         # Update album's tracks_sync_time
@@ -336,8 +359,7 @@ class LighthouseAPI():
             session.commit()
 
         # Set task complete if required
-        if endpoint:
-            TaskHandler().set_task_complete(task_id)
+        LighthouseAPI.endpoint(task_id, is_endpoint=endpoint)
         return
 
     def scrapeArtistTracks(self, task_id, artist_tidal_id, include_secondary_albums=True, endpoint=False):
@@ -353,7 +375,7 @@ class LighthouseAPI():
             self.scrapeAlbumTracks(task_id, album_tidal_id)
             album_i = album_i + 1
             # breakpoint
-            if TaskHandler().stop_event.is_set():
+            if LighthouseAPI.breakpoint(task_id):
                 return
 
         if include_secondary_albums:
@@ -367,11 +389,10 @@ class LighthouseAPI():
                 self.scrapeAlbumTracks(task_id, album_tidal_id)
                 album_i = album_i + 1
                 # breakpoint
-                if TaskHandler().stop_event.is_set():
+                if LighthouseAPI.breakpoint(task_id):
                     return
         # Set task complete if required
-        if endpoint:
-            TaskHandler().set_task_complete(task_id)
+        LighthouseAPI.endpoint(task_id, is_endpoint=endpoint)
 
     def scrapeArtistAlbums(self, task_id, artist_tidal_id, endpoint=False):
         TaskHandler().update_task_stdout(task_id, "Scraping artist albums via tidal_api (artist: " + str(artist_tidal_id) + ")")
@@ -390,7 +411,7 @@ class LighthouseAPI():
             # Check for additional pages
             try:
                 next_cursor = data["links"]["meta"]["nextCursor"]
-            except:
+            except Exception:
                 break
             # Prepare for next page
             queryString = "artists/" + str(artist_tidal_id) + "/relationships/albums?countryCode=" + self.settings.country_code + "&include=albums&page%5Bcursor%5D=" + next_cursor
@@ -410,7 +431,7 @@ class LighthouseAPI():
         albums_to_scrape_ids_length = len(albums_to_scrape_ids)
         album_i = 1
         for album_tidal_id in albums_to_scrape_ids:
-            TaskHandler().update_task_stdout(task_id, "Scraping album via tidal_api (" + str(album_i) + "/" + str(albums_to_scrape_ids_length) + ")")
+            TaskHandler().update_task_stdout(task_id, "Scraping album via tidal_api: " + str(album_tidal_id) + " (" + str(album_i) + "/" + str(albums_to_scrape_ids_length) + ")")
             TaskHandler().update_task_status_code(task_id, TaskStatusCode.WAITING_FOR_DATABASE_LOCK)
             with DatabaseLock(album_tidal_id, TidalType.ALBUM):
                 TaskHandler().update_task_status_code(task_id, TaskStatusCode.ACCEPTED)
@@ -437,10 +458,17 @@ class LighthouseAPI():
                 with Session(DatabaseAPI().engine) as session:
                     existing_artist_tidal_ids = set(session.exec(select(Artist.tidal_id).where(Artist.tidal_id.in_(album_artist_tidal_ids))).all())
                 missing_artist_tidal_ids = [artist_tidal_id for artist_tidal_id in album_artist_tidal_ids if artist_tidal_id not in existing_artist_tidal_ids]
+                skipped_artist_tidal_ids = []
 
                 for artist_tidal_id in missing_artist_tidal_ids:
-                    TaskHandler().update_task_stdout(task_id, "Unrecognised artist contributing to album, scraping...")
-                    self.scrapeArtistCore(task_id, artist_tidal_id)
+                    TaskHandler().update_task_stdout(task_id, "Unrecognised artist (" + str(artist_tidal_id) + ") contributing to album, scraping...")
+                    try:
+                        self.scrapeArtistCore(task_id, artist_tidal_id)
+                    except Exception as e:
+                        if artist_tidal_id == album_primary_artist_tidal_id:
+                            raise
+                        TaskHandler().update_task_stdout(task_id, "A problem occured whilst scraping the unreognised non-primary artist. Skipping unrecognised artist. Error: " + str(e))
+                        skipped_artist_tidal_ids.append(artist_tidal_id)
 
                 TaskHandler().update_task_stdout(task_id, "Saving album to DB...")
 
@@ -462,7 +490,7 @@ class LighthouseAPI():
                 albumArtworkCode = None
                 try:
                     albumArtworkCode = data["data"]["relationships"]["coverArt"]["data"][0]["id"]
-                except:
+                except Exception:
                     pass
                 for item in data["included"]:
                     if item["id"] == albumArtworkCode:
@@ -490,20 +518,21 @@ class LighthouseAPI():
 
                 # Create secondary artist links
                 for artist in album_secondary_artists:
-                    item_dict = {
-                        "artist_id": artist["id"],
-                        "album_id": album_tidal_id
-                    }
-                    try:
-                        with Session(DatabaseAPI().engine) as session:
-                            db_saal = SupportingArtistAlbumLink.model_validate(item_dict)
-                            session.add(db_saal)
-                            session.commit()
-                    except:
-                        pass
+                    if (int(artist["id"]) not in skipped_artist_tidal_ids):
+                        item_dict = {
+                            "artist_id": artist["id"],
+                            "album_id": album_tidal_id
+                        }
+                        try:
+                            with Session(DatabaseAPI().engine) as session:
+                                db_saal = SupportingArtistAlbumLink.model_validate(item_dict)
+                                session.add(db_saal)
+                                session.commit()
+                        except Exception:
+                            pass
             album_i = album_i + 1
             # breakpoint
-            if TaskHandler().stop_event.is_set():
+            if LighthouseAPI.breakpoint(task_id):
                 return
 
         # Update artist's albums_sync_time
@@ -512,44 +541,41 @@ class LighthouseAPI():
             artist.albums_sync_time = datetime.now(UTC)
             session.commit()
         # Set task complete if required
-        if endpoint:
-            TaskHandler().set_task_complete(task_id)
+        LighthouseAPI.endpoint(task_id, is_endpoint=endpoint)
         return
 
     def scrapeArtistContent(self, task_id, artist_tidal_id, endpoint=False):
         TaskHandler().update_task_stdout(task_id, "Scraping artist(content) via tidal_api (artist: " + str(artist_tidal_id) + ")")
         self.scrapeArtistAlbums(task_id, artist_tidal_id)
         # breakpoint
-        if TaskHandler().stop_event.is_set():
+        if LighthouseAPI.breakpoint(task_id):
             return
         self.scrapeArtistTracks(task_id, artist_tidal_id, include_secondary_albums=True)
         # breakpoint
-        if TaskHandler().stop_event.is_set():
+        if LighthouseAPI.breakpoint(task_id):
             return
         self.scrapeArtistVideos(task_id, artist_tidal_id)
         # Set task complete if required
-        if endpoint:
-            TaskHandler().set_task_complete(task_id)
+        LighthouseAPI.endpoint(task_id, is_endpoint=endpoint)
         return
 
     def scrapeArtistAll(self, task_id, artist_tidal_id, endpoint=False):
         TaskHandler().update_task_stdout(task_id, "Scraping artist(all) via tidal_api (artist: " + str(artist_tidal_id) + ")")
         self.scrapeArtistCore(task_id, artist_tidal_id, foreground=False)
         # breakpoint
-        if TaskHandler().stop_event.is_set():
+        if LighthouseAPI.breakpoint(task_id):
             return
         self.scrapeArtistAlbums(task_id, artist_tidal_id)
         # breakpoint
-        if TaskHandler().stop_event.is_set():
+        if LighthouseAPI.breakpoint(task_id):
             return
         self.scrapeArtistTracks(task_id, artist_tidal_id, include_secondary_albums=True)
         # breakpoint
-        if TaskHandler().stop_event.is_set():
+        if LighthouseAPI.breakpoint(task_id):
             return
         self.scrapeArtistVideos(task_id, artist_tidal_id)
         # Set task complete if required
-        if endpoint:
-            TaskHandler().set_task_complete(task_id)
+        LighthouseAPI.endpoint(task_id, is_endpoint=endpoint)
         return
 
     def scrapeAllMonitoredArtists(self, task_id, endpoint=False):
@@ -557,7 +583,7 @@ class LighthouseAPI():
         with Session(DatabaseAPI().engine) as session:
             artists_to_scrape_ids = session.exec(select(Artist.tidal_id).where(Artist.monitored == True)).all()
 
-        if TaskHandler().stop_event.is_set():
+        if LighthouseAPI.breakpoint(task_id):
             return
 
         artists_to_scrape_ids_length = len(artists_to_scrape_ids)
@@ -565,13 +591,12 @@ class LighthouseAPI():
         for artist_tidal_id in artists_to_scrape_ids:
            TaskHandler().update_task_stdout(task_id, "Scraping artist via tidal_api (" + str(artist_i) + "/" + str(artists_to_scrape_ids_length) + ")")
            self.scrapeArtistContent(task_id, artist_tidal_id)
-           if TaskHandler().stop_event.is_set():
-               return
+           if LighthouseAPI.breakpoint(task_id):
+              return
            artist_i = artist_i + 1
 
         # Set task complete if required
-        if endpoint:
-            TaskHandler().set_task_complete(task_id)
+        LighthouseAPI.endpoint(task_id, is_endpoint=endpoint)
         return
 
 
@@ -652,15 +677,15 @@ class LighthouseAPI():
                                 video.acquisition_state = AcquisitionState.ACQUIRED
                                 session.commit()
                         break
-                    except:
+                    except Exception as e:
                         # TODO: this needs to be improved to handle TIDAL deleting content. I.e: can we check if the item exists according to tidal (if yes: perform build from scan, if no: mark it as 403 or something?
                         if retry_i >= max_retries:
-                            message = "A fatal error occured. Rebuilding the DB did not enable the previously scanned item to be entered into the DB"
+                            message = "A fatal error occured. Rebuilding the DB did not enable the previously scanned item to be entered into the DB. Error: " + str(e)
                             TaskHandler().update_task_stdout(task_id, message)
                             print(message)
                             raise RuntimeError(message)
 
-                        message = "A critical error occured. An item was scanned but the relevant DB entries did not exist. A full re-build will be performed... note: this can take multiple hours per artist"
+                        message = "A critical error occured. An item was scanned but the relevant DB entries did not exist. A full re-build will be performed... note: this can take multiple hours per artist. Error: " + str(e)
                         TaskHandler().update_task_stdout(task_id, message)
                         print(message)
                         retry_i = retry_i + 1
@@ -706,14 +731,14 @@ class LighthouseAPI():
                                     video.acquisition_state = AcquisitionState.ACQUIRED
                                     session.commit()
                                 break
-                        except:
+                        except Exception as e:
                             if retry_i >= max_retries:
-                                message = "A fatal error occured. Rebuilding the DB did not enable the previously scanned item to be entered into the DB"
+                                message = "A fatal error occured. Rebuilding the DB did not enable the previously scanned item to be entered into the DB. Error: " + str(e)
                                 TaskHandler().update_task_stdout(task_id, message)
                                 print(message)
                                 raise RuntimeError(message)
 
-                            message = "A critical error occured. An item was scanned but the relevant DB entries did not exist. A full re-build will be performed..."
+                            message = "A critical error occured. An item was scanned but the relevant DB entries did not exist. A full re-build will be performed... note: this can take multiple hours per artist. Error: " + str(e)
                             TaskHandler().update_task_stdout(task_id, message)
                             print(message)
                             retry_i = retry_i + 1
@@ -775,8 +800,7 @@ class LighthouseAPI():
                 track.scan_time = datetime.now(UTC)
                 session.commit()
         # Set task complete if required
-        if endpoint:
-            TaskHandler().set_task_complete(task_id)
+        LighthouseAPI.endpoint(task_id, is_endpoint=endpoint)
 
     def scanVideo(self, task_id, video_tidal_id, endpoint=False):
         with self.scan_lock:
@@ -812,8 +836,7 @@ class LighthouseAPI():
                 video.scan_time = datetime.now(UTC)
                 session.commit()
         # Set task complete if required
-        if endpoint:
-            TaskHandler().set_task_complete(task_id)
+        LighthouseAPI.endpoint(task_id, is_endpoint=endpoint)
 
     def scanAlbum(self, task_id, album_tidal_id, endpoint=False):
         with self.scan_lock:
@@ -857,8 +880,7 @@ class LighthouseAPI():
                 album.tracks_sync_time = datetime.now(UTC)
                 session.commit()
         # Set task complete if required
-        if endpoint:
-            TaskHandler().set_task_complete(task_id)
+        LighthouseAPI.endpoint(task_id, is_endpoint=endpoint)
 
     def scanArtistAlbums(self, task_id, artist_tidal_id, endpoint=False):
         with self.scan_lock:
@@ -913,8 +935,7 @@ class LighthouseAPI():
                 artist.albums_scan_time = datetime.now(UTC)
                 session.commit()
         # Set task complete if required
-        if endpoint:
-            TaskHandler().set_task_complete(task_id)
+        LighthouseAPI.endpoint(task_id, is_endpoint=endpoint)
 
     def scanArtistVideos(self, task_id, artist_tidal_id, endpoint=False):
         with self.scan_lock:
@@ -952,15 +973,13 @@ class LighthouseAPI():
                 artist.videos_scan_time = datetime.now(UTC)
                 session.commit()
         # Set task complete if required
-        if endpoint:
-            TaskHandler().set_task_complete(task_id)
+        LighthouseAPI.endpoint(task_id, is_endpoint=endpoint)
 
     def scanArtistAll(self, task_id, artist_tidal_id, endpoint=False):
         self.scanArtistAlbums(task_id, artist_tidal_id)
         self.scanArtistVideos(task_id, artist_tidal_id)
         # Set task complete if required
-        if endpoint:
-            TaskHandler().set_task_complete(task_id)
+        LighthouseAPI.endpoint(task_id, is_endpoint=endpoint)
 
     def scanAllTracks(self, task_id, endpoint=False):
         with self.scan_lock:
@@ -998,8 +1017,7 @@ class LighthouseAPI():
                     artist.albums_scan_time = datetime.now(UTC)
                 session.commit()
         # Set task complete if required
-        if endpoint:
-            TaskHandler().set_task_complete(task_id)
+        LighthouseAPI.endpoint(task_id, is_endpoint=endpoint)
 
 
     def scanAllVideos(self, task_id, endpoint=False):
@@ -1031,16 +1049,14 @@ class LighthouseAPI():
                     artist.videos_scan_time = datetime.now(UTC)
                 session.commit()
         # Set task complete if required
-        if endpoint:
-            TaskHandler().set_task_complete(task_id)
+        LighthouseAPI.endpoint(task_id, is_endpoint=endpoint)
 
     def scanAll(self, task_id, endpoint=False):
         TaskHandler().update_task_stdout(task_id, "Scanning all")
         self.scanAllTracks(task_id)
         self.scanAllVideos(task_id)
         # Set task complete if required
-        if endpoint:
-            TaskHandler().set_task_complete(task_id)
+        LighthouseAPI.endpoint(task_id, is_endpoint=endpoint)
 
     def buildFromScanAndRescan(self, task_id):
         self.buildFromScan(self, task_id)
@@ -1084,8 +1100,7 @@ class LighthouseAPI():
             if scan and found:
                 self.scanVideo(task_id, video_tidal_id)
             # Set task complete if required
-            if endpoint:
-                TaskHandler().set_task_complete(task_id)
+            LighthouseAPI.endpoint(task_id, is_endpoint=endpoint)
         return
 
     def acquireTrack(self, task_id, track_tidal_id, force=False, scan=True, endpoint=False):
@@ -1124,8 +1139,7 @@ class LighthouseAPI():
             if scan and found:
                 self.scanTrack(task_id, track_tidal_id)
             # Set task complete if required
-            if endpoint:
-                TaskHandler().set_task_complete(task_id)
+            LighthouseAPI.endpoint(task_id, is_endpoint=endpoint)
         return
 
     def acquireArtistVideos(self, task_id, artist_tidal_id, include_secondary_videos=True, force=False, scan=True, endpoint=False):
@@ -1140,7 +1154,7 @@ class LighthouseAPI():
             self.acquireVideo(task_id, video_tidal_id, force=force, scan=False)
             video_i = video_i + 1
             # breakpoint
-            if TaskHandler().stop_event.is_set():
+            if LighthouseAPI.breakpoint(task_id):
                 return
 
 
@@ -1156,7 +1170,7 @@ class LighthouseAPI():
                 self.acquireVideo(task_id, video_tidal_id, force=force, scan=False)
                 video_i = video_i + 1
                 # breakpoint
-                if TaskHandler().stop_event.is_set():
+                if LighthouseAPI.breakpoint(task_id):
                     return
 
         # Scan if required
@@ -1167,8 +1181,7 @@ class LighthouseAPI():
                 self.scanAllVideos(task_id)
 
         # Set task complete if required
-        if endpoint:
-            TaskHandler().set_task_complete(task_id)
+        LighthouseAPI.endpoint(task_id, is_endpoint=endpoint)
 
     def acquireAlbumTracks(self, task_id, album_tidal_id, force=False, scan=True, endpoint=False):
         TaskHandler().update_task_stdout(task_id, "Acquiring album via tidekeeper (album: " + str(album_tidal_id) + ")")
@@ -1181,15 +1194,14 @@ class LighthouseAPI():
             self.acquireTrack(task_id, track_tidal_id, force=force, scan=False)
             track_i = track_i + 1
             # breakpoint
-            if TaskHandler().stop_event.is_set():
+            if LighthouseAPI.breakpoint(task_id):
                 return
 
         # Scan if required
         if scan:
             self.scanAlbum(task_id, album_tidal_id)
         # Set task complete if required
-        if endpoint:
-            TaskHandler().set_task_complete(task_id)
+        LighthouseAPI.endpoint(task_id, is_endpoint=endpoint)
 
     def acquireArtistAlbums(self, task_id, artist_tidal_id, include_secondary_albums=True, force=False, scan=True, endpoint=False):
         # Primary albums
@@ -1203,7 +1215,7 @@ class LighthouseAPI():
             self.acquireAlbumTracks(task_id, album_id, force=force, scan=False)
             album_i = album_i + 1
             # breakpoint
-            if TaskHandler().stop_event.is_set():
+            if LighthouseAPI.breakpoint(task_id):
                 return
 
         if include_secondary_albums:
@@ -1218,7 +1230,7 @@ class LighthouseAPI():
                 self.acquireAlbumTracks(task_id, album_id, force=force, scan=False)
                 album_i = album_i + 1
                 # breakpoint
-                if TaskHandler().stop_event.is_set():
+                if LighthouseAPI.breakpoint(task_id):
                     return
 
         # Scan if required
@@ -1229,12 +1241,13 @@ class LighthouseAPI():
                 self.scanAllTracks(task_id)
 
         # Set task complete if required
-        if endpoint:
-            TaskHandler().set_task_complete(task_id)
+        LighthouseAPI.endpoint(task_id, is_endpoint=endpoint)
 
     def acquireArtist(self, task_id, artist_tidal_id, include_secondary_albums=True, include_secondary_videos=True, include_videos=True, force=False, scan=True, endpoint=False):
         TaskHandler().update_task_stdout(task_id, "Acquiring artist(albums) via tidekeeper (artist: " + str(artist_tidal_id) + ")")
         self.acquireArtistAlbums(task_id, artist_tidal_id, include_secondary_albums=include_secondary_albums, force=force, scan=False)
+        if LighthouseAPI.breakpoint(task_id):
+            return
         if include_videos:
             TaskHandler().update_task_stdout(task_id, "Acquiring artist(videos) via tidal_api (artist: " + str(artist_tidal_id) + ")")
             self.acquireArtistVideos(task_id, artist_tidal_id, include_secondary_videos=include_secondary_videos, force=force, scan=False)
@@ -1242,8 +1255,7 @@ class LighthouseAPI():
         if scan:
             self.scanArtistAll(task_id, artist_tidal_id)
         # Set task complete if required
-        if endpoint:
-            TaskHandler().set_task_complete(task_id)
+        LighthouseAPI.endpoint(task_id, is_endpoint=endpoint)
 
     def acquireAllTracks(self, task_id, force=False, scan=True, endpoint=False):
         TaskHandler().update_task_stdout(task_id, "Acquiring tracks via tidekeeper")
@@ -1258,15 +1270,14 @@ class LighthouseAPI():
                 self.acquireTrack(task_id, track_tidal_id, force=force, scan=False)
                 track_i = track_i + 1
                 # breakpoint
-                if TaskHandler().stop_event.is_set():
+                if LighthouseAPI.breakpoint(task_id):
                     return
 
         # Scan if required
         if scan:
             self.scanAllTracks(task_id, artist_tidal_id)
         # Set task complete if required
-        if endpoint:
-            TaskHandler().set_task_complete(task_id)
+        LighthouseAPI.endpoint(task_id, is_endpoint=endpoint)
 
     def acquireAllVideos(self, task_id, force=False, scan=True, endpoint=False):
         TaskHandler().update_task_stdout(task_id, "Acquiring videos via tidekeeper")
@@ -1281,34 +1292,36 @@ class LighthouseAPI():
                 self.acquireVideo(task_id, video_tidal_id, force=force, scan=False)
                 video_i = video_i + 1
                 # breakpoint
-                if TaskHandler().stop_event.is_set():
+                if LighthouseAPI.breakpoint(task_id):
                     return
 
         # Scan if required
         if scan:
             self.scanAllVideos(task_id, artist_tidal_id)
         # Set task complete if required
-        if endpoint:
-            TaskHandler().set_task_complete(task_id)
+        LighthouseAPI.endpoint(task_id, is_endpoint=endpoint)
 
     def acquireAll(self, task_id, force=False, scan=True, endpoint=False):
         TaskHandler().update_task_stdout(task_id, "Acquiring al content via tidekeeper")
         self.acquireAllTracks(task_id=task_id, force=force, scan=False)
+        if LighthouseAPI.breakpoint(task_id):
+            return
         self.acquireAllVideos(task_id=task_id, force=force, scan=False)
 
         # Scan if required
         if scan:
             self.scanAll(task_id)
         # Set task complete if required
-        if endpoint:
-            TaskHandler().set_task_complete(task_id)
+        LighthouseAPI.endpoint(task_id, is_endpoint=endpoint)
 
     # Other
     def scrapeAndAcquireArtistContent(self, task_id, artist_tidal_id, force_refresh=False):
         TaskHandler().update_task_stdout(task_id, "Scrape and Acquire artist(content) via tidal_api (artist: " + str(artist_tidal_id) + ")")
         self.scrapeArtistContent(task_id, artist_tidal_id)
+        if LighthouseAPI.breakpoint(task_id):
+            return
         self.acquireArtist(task_id, artist_tidal_id, include_secondary_albums=True)
-        TaskHandler().set_task_complete(task_id)
+        LighthouseAPI.endpoint(task_id, is_endpoint=True)
 
 
     def searchForArtistAndMetadata(self, task_id, text):
@@ -1325,16 +1338,13 @@ class LighthouseAPI():
         TaskHandler().update_task_data_field(task_id, "results", [jsonable_encoder(artist) for artist in artists])
 
         # First breakpoint
-        if TaskHandler().stop_event.is_set():
+        if LighthouseAPI.breakpoint(task_id):
             return
 
         # Search TidalAPI's searchSuggestions for additional matches
         TaskHandler().update_task_message(task_id, "Searching Tidal API for: " + str(text))
         TaskHandler().update_task_stdout(task_id, "Querying searchSuggestions: " + str(text))
-        print("Query")
-        print(query_text)
         queryString = "searchSuggestions?filter%5Bquery%5D=" + str(query_text) + "&countryCode=" + self.settings.country_code + "&include=directHits&explicitFilter=INCLUDE"
-        print(queryString)
         status_code, data = TidalAPI().getQueryForeground(task_id, queryString)
         # Filter results to only include IDs of 'artists', return if no artists exist:
         raw_results = data["included"]
@@ -1358,7 +1368,7 @@ class LighthouseAPI():
             return
 
         # Second breakpoint
-        if TaskHandler().stop_event.is_set():
+        if LighthouseAPI.breakpoint(task_id):
             return
 
         # Query each artist to obtain their metadata
@@ -1381,7 +1391,7 @@ class LighthouseAPI():
 
             # Cleanup
             missing_artist_i = missing_artist_i + 1
-            if TaskHandler().stop_event.is_set():
+            if LighthouseAPI.breakpoint(task_id):
                 return
 
         # Update task

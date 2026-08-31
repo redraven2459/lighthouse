@@ -59,7 +59,8 @@ enum TaskStatusCode {
   waitingForTidekeeperAuth(804),
   waitingForTidekeeperLock(805),
   waitingForDatabaseLock(806),
-  interrupted(900);
+  interrupted(900),
+  error(999);
 
   final int value;
 

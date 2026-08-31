@@ -46,7 +46,7 @@ class DatabaseLock:
                 try:
                     session.commit()
                     claimed = True
-                except:
+                except Exception:
                     session.rollback()
                     claimed = False
                     time.sleep(random.uniform(0.4, 0.6))

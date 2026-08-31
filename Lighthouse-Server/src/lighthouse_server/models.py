@@ -24,6 +24,7 @@ class TaskStatusCode(IntEnum):
     WAITING_FOR_TIDEKEEPER_LOCK = 805
     WAITING_FOR_DATABASE_LOCK = 806
     INTERRUPTED = 900
+    ERROR = 999
 
 class AcquisitionState(IntEnum):
     PENDING = -1
