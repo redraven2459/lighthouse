@@ -1,21 +1,28 @@
+print("Import 1")
 import inspect
 import subprocess, os, json
+print("Import 2")
 from enum import Enum
 from datetime import datetime, timedelta, UTC
 from pathlib import Path
 from contextlib import asynccontextmanager
+print("Import 3")
 
 from fastapi import FastAPI, Query, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+print("Import 4")
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlmodel import Session, select
+print("Import 5")
 
 from lighthouse_server.tasks import *
 from lighthouse_server.settings import Settings
+print("Import 6")
 from lighthouse_server.lighthouse_api import LighthouseAPI
 from lighthouse_server.models import *
+print("Import 7")
 from lighthouse_server.database_api import DatabaseAPI
 
 API_MAJOR_VERSION = 0
@@ -23,7 +30,9 @@ API_MINOR_VERSION = 1
 API_PATCH_VERSION = 0
 API_VERSION = str(API_MAJOR_VERSION) + "." + str(API_MINOR_VERSION) + "." + str(API_PATCH_VERSION)
 
+print("Import 8")
 settings = Settings()
+print("Import 9")
 
 def emptyFunction(task_id):
     return
