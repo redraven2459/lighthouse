@@ -30,21 +30,27 @@ def emptyFunction(task_id):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Start startup
+    print("lighthouse_server startup start")
     # Configure tidekeeper
+    print("lighthouse_server startup: configuring Tidekeeper")
     with open(settings.tidekeeper_config_path + "/.tidal-dl.json", "r") as file:
         data = json.load(file)
     data["downloadPath"] = settings.tidekeeper_music_path
     with open(settings.tidekeeper_config_path + "/.tidal-dl.json", "w") as file:
         json.dump(data, file, indent=4)
     # TaskHandler startup
+    print("lighthouse_server startup: initialising TaskHandler")
     TaskHandler().startup()
     # Startup Scan
+    print("lighthouse_server startup: performing startup scan")
     startup_task_description = "Startup scan"
     startup_task_id = TaskHandler().start_task(target=emptyFunction, description=startup_task_description)
-    print("Performing startup scan")
     LighthouseAPI().scanAll(startup_task_id, endpoint=True)
+    # Finish startup
     print("lighthouse_server startup complete")
     yield
+    print("lighthouse_server shutdown start")
     TaskHandler().shutdown()
     print("lighthouse_server shutdown complete")
 
@@ -66,14 +72,6 @@ app.add_middleware(
 @app.get("/", response_model=RootRead)
 async def root():
     return RootRead(api_version=API_VERSION, database_version=DATABASE_VERSION)
-
-# TODO: add routes for:
-# scanAll
-# scanAllVideos
-# scanAllTracks
-# acquireAll
-# acquireAllVideos
-# acquireAllTracks
 
 # Helper functions
 def get_artist_information_response(artist_tidal_id: int):
