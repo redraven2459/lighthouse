@@ -23,4 +23,4 @@ COPY docker/.tidal-dl.json.example ./.tidal-dl.json
 WORKDIR /srv/lighthouse_server
 EXPOSE 8000
 ENTRYPOINT ["./entrypoint.sh"]
-CMD ["python", "-m", "uvicorn", "lighthouse_server.__main__:app", "--app-dir", "src", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+CMD ["python", "-m", "fastapi", "run", "src/lighthouse_server/__main__.py"]
