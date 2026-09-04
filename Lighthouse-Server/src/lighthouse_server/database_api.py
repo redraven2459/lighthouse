@@ -21,7 +21,7 @@ class DatabaseAPI():
         # Init DB engine
         self._sqlite_file_path = self.settings.database_path
         self._sqlite_url = f"sqlite:///{self._sqlite_file_path}"
-        self.engine = create_engine(self._sqlite_url, connect_args={"timeout": 30})
+        self.engine = create_engine(self._sqlite_url, connect_args={"timeout": 60})
 
         # Init DB metadata
         self._prototyping_mode = True

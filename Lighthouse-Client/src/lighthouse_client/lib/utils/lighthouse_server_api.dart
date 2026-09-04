@@ -699,7 +699,7 @@ class LighthouseServerAPI {
 
   Future<Task?> scrapeAndAcquireArtist({required BuildContext context, required int tidalID}) async {
     final String _serverAddress = await getServerAddress();
-    final String address = "${_serverAddress}artists/${tidalID}/scrape_and_acquire/content";
+    final String address = "${_serverAddress}artists/${tidalID}/scrape_and_acquire/all";
 
     final response = await getRequest(context: context, uri: Uri.parse(address));
     if (response == null) {return null;}

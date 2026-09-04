@@ -1315,9 +1315,9 @@ class LighthouseAPI():
         LighthouseAPI.endpoint(task_id, is_endpoint=endpoint)
 
     # Other
-    def scrapeAndAcquireArtistContent(self, task_id, artist_tidal_id, force_refresh=False):
-        TaskHandler().update_task_stdout(task_id, "Scrape and Acquire artist(content) via tidal_api (artist: " + str(artist_tidal_id) + ")")
-        self.scrapeArtistContent(task_id, artist_tidal_id)
+    def scrapeAndAcquireArtistAll(self, task_id, artist_tidal_id, force_refresh=False):
+        TaskHandler().update_task_stdout(task_id, "Scrape and Acquire Artist(All) via tidal_api (artist: " + str(artist_tidal_id) + ")")
+        self.scrapeArtistAll(task_id, artist_tidal_id)
         if LighthouseAPI.breakpoint(task_id):
             return
         self.acquireArtist(task_id, artist_tidal_id, include_secondary_albums=True)
