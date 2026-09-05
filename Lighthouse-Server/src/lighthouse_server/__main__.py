@@ -320,7 +320,7 @@ async def acquire_artist_videos(
 @app.get("/artists/{artist_tidal_id}/scrape_and_acquire/all", response_model=TaskRead)
 async def scrape_and_acquire_artist(artist_tidal_id: int):
     task_description = "Scrape and Acquire Artist(All): " + str(artist_tidal_id)
-    task_id = TaskHandler().start_task(target=LighthouseAPI().scrapeAndAcquireArtist, description=task_description, artist_tidal_id=artist_tidal_id)
+    task_id = TaskHandler().start_task(target=LighthouseAPI().scrapeAndAcquireArtistAll, description=task_description, artist_tidal_id=artist_tidal_id)
     with Session(DatabaseAPI().engine) as session:
         task = session.exec(select(Task).where(Task.id == task_id)).one()
     return task

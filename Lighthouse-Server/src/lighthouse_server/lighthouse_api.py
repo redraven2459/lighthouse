@@ -967,17 +967,14 @@ class LighthouseAPI():
 
     def scanAllTracks(self, task_id, endpoint=False):
         with self.scan_lock:
-            Logger.info("1")
             # Mark associated tracks as unacquired
             with Session(DatabaseAPI().engine) as session:
                 tracks = session.exec(select(Track).where(Track.acquisition_state == AcquisitionState.ACQUIRED)).all()
                 for track in tracks:
                     track.acquisition_state = AcquisitionState.PENDING
                 session.commit()
-            Logger.info("2")
             # Scan
             self.scanPath(task_id, self.settings.music_path + "/")
-            Logger.info("3")
             # Check for leftover items
             with Session(DatabaseAPI().engine) as session:
                 tracks = session.exec(select(Track).where(Track.acquisition_state == AcquisitionState.PENDING)).all()
@@ -985,28 +982,24 @@ class LighthouseAPI():
                     track.acquisition_state = AcquisitionState.EMPTY
                     track.acquisition_quality = None
                 session.commit()
-            Logger.info("4")
             # Mark tracks as scanned
             with Session(DatabaseAPI().engine) as session:
                 tracks = session.exec(select(Track)).all()
                 for track in tracks:
                     track.scan_time = datetime.now(UTC)
                 session.commit()
-            Logger.info("5")
             # Mark albums as scanned
             with Session(DatabaseAPI().engine) as session:
                 albums = session.exec(select(Album)).all()
                 for album in albums:
                     album.tracks_sync_time = datetime.now(UTC)
                 session.commit()
-            Logger.info("6")
             # Mark artist albums as scanned
             with Session(DatabaseAPI().engine) as session:
                 artists = session.exec(select(Artist)).all()
                 for artist in artists:
                     artist.albums_scan_time = datetime.now(UTC)
                 session.commit()
-            Logger.info("7")
         # Set task complete if required
         LighthouseAPI.endpoint(task_id, is_endpoint=endpoint)
 
