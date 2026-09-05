@@ -2,7 +2,7 @@ FROM alpine:latest
 LABEL org.opencontainers.image.source="https://github.com/redraven2459/lighthouse"
 
 WORKDIR /srv/lighthouse_server
-RUN apk add --no-cache python3 py3-pip git
+RUN apk add --no-cache python3 py3-pip git ffmpeg
 COPY pyproject.toml .
 COPY alembic.ini ./alembic.ini
 COPY alembic ./alembic
