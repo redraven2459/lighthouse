@@ -72,7 +72,8 @@ app.add_middleware(
 )
 
 print("lighthouse_server initialisation complete")
-print("lighthouse_server lifespan: " + app.router.lifespan_context)
+print("lighthouse_server lifespan object: ", app.router.lifespan_context)
+print("lighthouse_server lifespan same object: ", app.router.lifespan_context is lifespan)
 
 @app.get("/", response_model=RootRead)
 async def root():
