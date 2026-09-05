@@ -12,7 +12,7 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 
 from lighthouse_server.tasks import *
-from lighthouse_server.settings import Settings, logger
+from lighthouse_server.settings import Settings, Logger
 from lighthouse_server.lighthouse_api import LighthouseAPI
 from lighthouse_server.models import *
 
@@ -32,28 +32,28 @@ def emptyFunction(task_id):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Start startup
-    logger.info("lighthouse_server startup start")
+    Logger.info("lighthouse_server startup start")
     # Configure tidekeeper
-    logger.info("lighthouse_server startup: configuring Tidekeeper")
+    Logger.info("lighthouse_server startup: configuring Tidekeeper")
     with open(settings.tidekeeper_config_path + "/.tidal-dl.json", "r") as file:
         data = json.load(file)
     data["downloadPath"] = settings.tidekeeper_music_path
     with open(settings.tidekeeper_config_path + "/.tidal-dl.json", "w") as file:
         json.dump(data, file, indent=4)
     # TaskHandler startup
-    logger.info("lighthouse_server startup: initialising TaskHandler")
+    Logger.info("lighthouse_server startup: initialising TaskHandler")
     TaskHandler().startup()
     # Startup Scan
-    logger.info("lighthouse_server startup: performing startup scan")
+    Logger.info("lighthouse_server startup: performing startup scan")
     startup_task_description = "Startup scan"
     startup_task_id = TaskHandler().start_task(target=emptyFunction, description=startup_task_description)
     LighthouseAPI().scanAll(startup_task_id, endpoint=True)
     # Finish startup
-    logger.info("lighthouse_server startup complete")
+    Logger.info("lighthouse_server startup complete")
     yield
-    logger.info("lighthouse_server shutdown start")
+    Logger.info("lighthouse_server shutdown start")
     TaskHandler().shutdown()
-    logger.info("lighthouse_server shutdown complete")
+    Logger.info("lighthouse_server shutdown complete")
 
 app = FastAPI(
     title="LIGHTHOUSE_SERVER",
@@ -72,7 +72,7 @@ app.add_middleware(
 
 @app.get("/", response_model=RootRead)
 async def root():
-    logger.info("Root endpoint accessed")
+    Logger.info("Root endpoint accessed")
     return RootRead(api_version=API_VERSION, database_version=DATABASE_VERSION)
 
 # Helper functions

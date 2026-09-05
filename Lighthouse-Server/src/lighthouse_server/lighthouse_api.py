@@ -10,7 +10,7 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 from fastapi.encoders import jsonable_encoder
 
-from lighthouse_server.settings import Settings
+from lighthouse_server.settings import Settings, Logger
 from lighthouse_server.tasks import TaskHandler, TaskStatusCode
 from lighthouse_server.tidal_api import TidalAPI
 from lighthouse_server.tidekeeper_api import TidekeeperAPI
@@ -604,13 +604,13 @@ class LighthouseAPI():
     def buildFromScan(self, task_id):
         message = "Building from scan"
         TaskHandler().update_task_stdout(task_id, message)
-        print(message)
+        Logger.info(message)
         artist_tidal_ids = set()
 
         # Get albums artists
         message = "Building from scan: Scanning artists via albums"
         TaskHandler().update_task_stdout(task_id, message)
-        print(message)
+        Logger.info(message)
         albums_path_raw = self.settings.music_path + "/"
         albums_path_path = Path(albums_path_raw)
         albums_folder_names = [p.name for p in albums_path_path.iterdir() if p.is_dir()]
@@ -620,7 +620,7 @@ class LighthouseAPI():
         # Get videos artists
         message = "Building from scan: Scanning artists via videos"
         TaskHandler().update_task_stdout(task_id, message)
-        print(message)
+        Logger.info(message)
         videos_path_raw = self.settings.music_videos_path + "/"
         videos_path_path = Path(videos_path_raw)
         videos_folder_names = [p.name for p in videos_path_path.iterdir() if p.is_dir()]
@@ -630,13 +630,13 @@ class LighthouseAPI():
         # Scrape every artist ID
         message = "Building from scan: Scraping artists via tidal_api"
         TaskHandler().update_task_stdout(task_id, message)
-        print(message)
+        Logger.info(message)
         artist_ids_length = len(artist_tidal_ids)
         artist_i = 1
         for artist_tidal_id in artist_tidal_ids:
             message = "Building from scan: Scraping artists via tidal_api ("+ str(artist_i) + "/" + str(artist_ids_length)+ ")"
             TaskHandler().update_task_stdout(task_id, message)
-            print(message)
+            Logger.info(message)
             self.scrapeArtistAll(task_id, artist_tidal_id, monitored=True)
             artist_i = artist_i + 1
 
@@ -644,106 +644,90 @@ class LighthouseAPI():
         acceptable_track_extensions = {"mp3", "m4a", "aac", "flac"}
         acceptable_video_extensions = {"mp4"}
 
-        if is_item == False:
-            path = Path(path_raw)
-            files = [str(f) for f in path.rglob("*") if f.is_file()]
-            for file_name in files:
-                file_extension = file_name.rsplit(".", 1)[-1]
-                if (file_extension not in acceptable_track_extensions) and (file_extension not in acceptable_video_extensions):
-                    continue
+        # Try to scan the path, if a failure occurs perform a full rebuild
+        max_retried = 1
+        retry_i = 0
+        while retry_i <= max_retried:
+            try:
+                with Session(DatabaseAPI().engine) as session:
+                    # ScanPath for Path
+                    if is_item == False:
+                        path = Path(path_raw)
+                        files = [str(f) for f in path.rglob("*") if f.is_file()]
+                        for file_name in files:
+                            file_extension = file_name.rsplit(".", 1)[-1]
+                            if (file_extension not in acceptable_track_extensions) and (file_extension not in acceptable_video_extensions):
+                                continue
 
-                file_name_no_extension = file_name.rsplit(".", 1)[0]
-                parts = file_name_no_extension.split(" - ")
+                            file_name_no_extension = file_name.rsplit(".", 1)[0]
+                            parts = file_name_no_extension.split(" - ")
 
-                # Try update the relevant record, if the record does not exist perform a full rebuild
-                max_retries = 1
-                retry_i = 0
-                while retry_i <= max_retries:
-                    try:
-                        if file_extension in acceptable_track_extensions:
-                            quality_string = parts[-1]
-                            id_string = parts[-2]
-                            id_int = int(id_string)
-                            with Session(DatabaseAPI().engine) as session:
+                            if file_extension in acceptable_track_extensions:
+                                quality_string = parts[-1]
+                                id_string = parts[-2]
+                                id_int = int(id_string)
                                 track = session.exec(select(Track).where(Track.tidal_id == id_int)).one()
                                 track.acquisition_state = AcquisitionState.ACQUIRED
                                 track.acquisition_quality = quality_string
-                                session.commit()
-                        if file_extension in acceptable_video_extensions:
-                            id_string = parts[-1]
-                            id_int = int(id_string)
-                            with Session(DatabaseAPI().engine) as session:
+
+                            if file_extension in acceptable_video_extensions:
+                                id_string = parts[-1]
+                                id_int = int(id_string)
                                 video = session.exec(select(Video).where(Video.tidal_id == id_int)).one()
                                 video.acquisition_state = AcquisitionState.ACQUIRED
-                                session.commit()
-                        break
-                    except Exception as e:
-                        # TODO: this needs to be improved to handle TIDAL deleting content. I.e: can we check if the item exists according to tidal (if yes: perform build from scan, if no: mark it as 403 or something?
-                        if retry_i >= max_retries:
-                            message = "A fatal error occured. Rebuilding the DB did not enable the previously scanned item to be entered into the DB. Error: " + str(e)
-                            TaskHandler().update_task_stdout(task_id, message)
-                            print(message)
-                            raise RuntimeError(message)
 
-                        message = "A critical error occured. An item was scanned but the relevant DB entries did not exist. A full re-build will be performed... note: this can take multiple hours per artist. Error: " + str(e)
-                        TaskHandler().update_task_stdout(task_id, message)
-                        print(message)
-                        retry_i = retry_i + 1
-                        self.buildFromScan(task_id)
-                continue
-        else:
-            path = Path(path_raw.rsplit("/", 1)[0])
-            try:
-                files = [p.name for p in path.iterdir() if p.is_file()]
-            except FileNotFoundError:
-                files = []
-            path_parts = path_raw.split("/")
-            match_string = path_parts[-1]
-            matched = False
-            for file_name in files:
-                file_name_no_extension = file_name.rsplit(".", 1)[0]
-                file_extension = file_name.rsplit(".", 1)[-1]
-                name_parts = file_name_no_extension.split(" - ")
-                if (file_extension not in acceptable_track_extensions) and (file_extension not in acceptable_video_extensions):
-                    continue
-                if (file_name_no_extension == match_string):
-                    matched = True
-
-                    # Try update the relevant record, if the record does not exist perform a full rebuild
-                    max_retries = 1
-                    retry_i = 0
-                    while retry_i <= max_retries:
+                    # ScanPath for item
+                    else:
+                        path = Path(path_raw.rsplit("/", 1)[0])
                         try:
+                            files = [p.name for p in path.iterdir() if p.is_file()]
+                        except FileNotFoundError:
+                            files = []
+                        path_parts = path_raw.split("/")
+                        match_string = path_parts[-1]
+                        matched = False
+                        for file_name in files:
+                            file_name_no_extension = file_name.rsplit(".", 1)[0]
+                            file_extension = file_name.rsplit(".", 1)[-1]
+                            name_parts = file_name_no_extension.split(" - ")
+                            if (file_extension not in acceptable_track_extensions) and (file_extension not in acceptable_video_extensions):
+                                continue
+                            if (file_name_no_extension == match_string):
+                                matched = True
+
                             if file_extension in acceptable_track_extensions:
                                 quality_string = name_parts[-1]
                                 id_string = name_parts[-2]
                                 id_int = int(id_string)
-                                with Session(DatabaseAPI().engine) as session:
-                                    track = session.exec(select(Track).where(Track.tidal_id == id_int)).one()
-                                    track.acquisition_state = AcquisitionState.ACQUIRED
-                                    track.acquisition_quality = quality_string
-                                break
+                                track = session.exec(select(Track).where(Track.tidal_id == id_int)).one()
+                                track.acquisition_state = AcquisitionState.ACQUIRED
+                                track.acquisition_quality = quality_string
+
                             if file_extension in acceptable_video_extensions:
                                 id_string = name_parts[-1]
                                 id_int = int(id_string)
-                                with Session(DatabaseAPI().engine) as session:
-                                    video = session.exec(select(Video).where(Video.tidal_id == id_int)).one()
-                                    video.acquisition_state = AcquisitionState.ACQUIRED
-                                    session.commit()
-                                break
-                        except Exception as e:
-                            if retry_i >= max_retries:
-                                message = "A fatal error occured. Rebuilding the DB did not enable the previously scanned item to be entered into the DB. Error: " + str(e)
-                                TaskHandler().update_task_stdout(task_id, message)
-                                print(message)
-                                raise RuntimeError(message)
+                                video = session.exec(select(Video).where(Video.tidal_id == id_int)).one()
+                                video.acquisition_state = AcquisitionState.ACQUIRED
 
-                            message = "A critical error occured. An item was scanned but the relevant DB entries did not exist. A full re-build will be performed... note: this can take multiple hours per artist. Error: " + str(e)
-                            TaskHandler().update_task_stdout(task_id, message)
-                            print(message)
-                            retry_i = retry_i + 1
-                            self.buildFromScan(task_id)
-                    continue
+                    # Commit changes
+                    session.commit()
+                    # Exit the while loop on success
+                    break
+            except:
+                # TODO: this needs to be improved to handle TIDAL deleting content. I.e: can we check if the item exists according to tidal (if yes: perform build from scan, if no: mark it as 403 or something?
+                if retry_i >= max_retries:
+                    message = "A fatal error occured. Rebuilding the DB did not enable the previously scanned item to be entered into the DB. Error: " + str(e)
+                    TaskHandler().update_task_stdout(task_id, message)
+                    Logger.crticial(message)
+                    raise RuntimeError(message)
+
+                message = "A critical error occured. An item was scanned but the relevant DB entries did not exist. A full re-build will be performed... note: this can take multiple hours per artist. Error: " + str(e)
+                TaskHandler().update_task_stdout(task_id, message)
+                Logger.error(message)
+                retry_i = retry_i + 1
+                self.buildFromScan(task_id)
+
+
 
     def getArtistMusicPath(self, artist_tidal_id, artist_name):
         return self.settings.music_path + "/" + self.SanitiseStringForPath(artist_name) + " - " + str(artist_tidal_id) + "/"
@@ -983,14 +967,17 @@ class LighthouseAPI():
 
     def scanAllTracks(self, task_id, endpoint=False):
         with self.scan_lock:
+            Logger.info("1")
             # Mark associated tracks as unacquired
             with Session(DatabaseAPI().engine) as session:
                 tracks = session.exec(select(Track).where(Track.acquisition_state == AcquisitionState.ACQUIRED)).all()
                 for track in tracks:
                     track.acquisition_state = AcquisitionState.PENDING
                 session.commit()
+            Logger.info("2")
             # Scan
             self.scanPath(task_id, self.settings.music_path + "/")
+            Logger.info("3")
             # Check for leftover items
             with Session(DatabaseAPI().engine) as session:
                 tracks = session.exec(select(Track).where(Track.acquisition_state == AcquisitionState.PENDING)).all()
@@ -998,24 +985,28 @@ class LighthouseAPI():
                     track.acquisition_state = AcquisitionState.EMPTY
                     track.acquisition_quality = None
                 session.commit()
+            Logger.info("4")
             # Mark tracks as scanned
             with Session(DatabaseAPI().engine) as session:
                 tracks = session.exec(select(Track)).all()
                 for track in tracks:
                     track.scan_time = datetime.now(UTC)
                 session.commit()
+            Logger.info("5")
             # Mark albums as scanned
             with Session(DatabaseAPI().engine) as session:
                 albums = session.exec(select(Album)).all()
                 for album in albums:
                     album.tracks_sync_time = datetime.now(UTC)
                 session.commit()
+            Logger.info("6")
             # Mark artist albums as scanned
             with Session(DatabaseAPI().engine) as session:
                 artists = session.exec(select(Artist)).all()
                 for artist in artists:
                     artist.albums_scan_time = datetime.now(UTC)
                 session.commit()
+            Logger.info("7")
         # Set task complete if required
         LighthouseAPI.endpoint(task_id, is_endpoint=endpoint)
 

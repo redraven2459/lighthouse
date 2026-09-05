@@ -75,7 +75,7 @@ log_config = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "default": {
+        "console": {
             "format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
             "datefmt": "%Y-%m-%d %H:%M:%S",
         },
@@ -87,7 +87,7 @@ log_config = {
         "console": {
             "class": "logging.StreamHandler",
             "level": "DEBUG",
-            "formatter": "default",
+            "formatter": "console",
             "stream": "ext://sys.stdout",
         },
         "rotating_file": {
@@ -100,9 +100,9 @@ log_config = {
         },
     },
     "loggers": {
-        "app": {"handlers": ["console", "rotating_file"], "level": "DEBUG", "propagate": False},
+        "lighthouse_server": {"handlers": ["console", "rotating_file"], "level": "DEBUG", "propagate": False},
     },
     "root": {"handlers": ["console"], "level": "DEBUG"},
 }
 logging.config.dictConfig(log_config)
-logger = logging.getLogger("app")
+Logger = logging.getLogger("lighthouse_server")

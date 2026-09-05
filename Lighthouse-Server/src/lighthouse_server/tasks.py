@@ -8,6 +8,7 @@ from sqlmodel import Session, select
 
 from lighthouse_server.models import *
 from lighthouse_server.database_api import DatabaseAPI
+from lighthouse_server.settings import Logger
 
 
 tidal_api_auth_address = "tidal_api_auth_address"
@@ -161,21 +162,21 @@ class TaskHandler():
             # Check for incomplete JobProcessing entries (i.e: leftover claims from an ungraceful shutdown)
             incomplete_jobs = session.exec(select(JobProcessing)).all()
             if incomplete_jobs != []:
-                print("During startup lighthouse_server identified leftover job processing claims from an ungraceful shutdown. The database will need to be repaired.")
+                Logger.warning("During startup lighthouse_server identified leftover job processing claims from an ungraceful shutdown. The database will need to be repaired.")
                 for job in incomplete_jobs:
                     session.delete(job)
                 session.commit()
             if incomplete_jobs != []:
-                print("Database repair successful")
+                Logger.info("Database repair successful")
 
             # Check for incomplete tasks
             incomplete_tasks = session.exec(select(Task).where((Task.status_code != TaskStatusCode.COMPLETE), (Task.status_code != TaskStatusCode.INTERRUPTED), (Task.status_code != TaskStatusCode.ERROR))).all()
             if len(incomplete_tasks) > 0:
-                print("During startup lighthouse_server identified tasks that were interrupted gracelessly. The database will need to be repaired.")
+                Logger.warning("During startup lighthouse_server identified tasks that were interrupted gracelessly. The database will need to be repaired.")
                 for task in incomplete_tasks:
                     task.status_code = TaskStatusCode.INTERRUPTED
                 session.commit()
-                print("Database repair successful")
+                Logger.info("Database repair successful")
 
             # Check for pending tracks
             # TODO: this should be changed to check for pending tracks first to display a message
@@ -196,22 +197,22 @@ class TaskHandler():
     def shutdown(self):
         if self.task_threads != {}:
             # Shutdown threads
-            print("Shutting down lighthouse_server worker threads...")
+            Logger.info("Shutting down lighthouse_server worker threads...")
             self.stop_event.set()
             task_thread_len = len(self.task_threads)
             task_thread_i = 1
             for task_key in list(self.task_threads.keys()):
                 try:
-                    print("Shutting down lighthouse_server worker thread: " + str(task_key) + " (" + str(task_thread_i) + "/" + str(task_thread_len) + ")")
+                    Logger.info("Shutting down lighthouse_server worker thread: " + str(task_key) + " (" + str(task_thread_i) + "/" + str(task_thread_len) + ")")
                     task_thread_i = task_thread_i + 1
                     task_thread = self.task_threads[task_key]
                     task_thread.thread.join(timeout=60)
                     if task_thread.thread.is_alive():
-                        print("Task thread: " + str(task_key) + " has failed to stop within 60s")
+                        Logger.warning("Task thread: " + str(task_key) + " has failed to stop within 60s")
                 except RuntimeErorr:
                     pass
 
-            print ("Marking incomplete tasks as interrupted...")
+            Logger.info("Marking incomplete tasks as interrupted...")
             # Mark incomplete threads as INTERRUPTED
             with Session(DatabaseAPI().engine) as session:
                 for task_key in self.task_threads:

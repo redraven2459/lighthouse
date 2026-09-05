@@ -252,4 +252,3 @@ class TidalAPI():
                     return r.status_code, r.json()
 
                 attempt = attempt + 1
-            print("Task: " + str(task_id) + " is releasing api_lock_foreground")
