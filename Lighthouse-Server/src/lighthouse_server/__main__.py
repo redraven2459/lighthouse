@@ -1,5 +1,4 @@
-import inspect
-import subprocess, os, json
+import subprocess, os, json, inspect
 from enum import Enum
 from datetime import datetime, timedelta, UTC
 from pathlib import Path
@@ -13,7 +12,7 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 
 from lighthouse_server.tasks import *
-from lighthouse_server.settings import Settings
+from lighthouse_server.settings import Settings, logger
 from lighthouse_server.lighthouse_api import LighthouseAPI
 from lighthouse_server.models import *
 
@@ -33,28 +32,28 @@ def emptyFunction(task_id):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Start startup
-    print("lighthouse_server startup start")
+    logger.info("lighthouse_server startup start")
     # Configure tidekeeper
-    print("lighthouse_server startup: configuring Tidekeeper")
+    logger.info("lighthouse_server startup: configuring Tidekeeper")
     with open(settings.tidekeeper_config_path + "/.tidal-dl.json", "r") as file:
         data = json.load(file)
     data["downloadPath"] = settings.tidekeeper_music_path
     with open(settings.tidekeeper_config_path + "/.tidal-dl.json", "w") as file:
         json.dump(data, file, indent=4)
     # TaskHandler startup
-    print("lighthouse_server startup: initialising TaskHandler")
+    logger.info("lighthouse_server startup: initialising TaskHandler")
     TaskHandler().startup()
     # Startup Scan
-    print("lighthouse_server startup: performing startup scan")
+    logger.info("lighthouse_server startup: performing startup scan")
     startup_task_description = "Startup scan"
     startup_task_id = TaskHandler().start_task(target=emptyFunction, description=startup_task_description)
     LighthouseAPI().scanAll(startup_task_id, endpoint=True)
     # Finish startup
-    print("lighthouse_server startup complete")
+    logger.info("lighthouse_server startup complete")
     yield
-    print("lighthouse_server shutdown start")
+    logger.info("lighthouse_server shutdown start")
     TaskHandler().shutdown()
-    print("lighthouse_server shutdown complete")
+    logger.info("lighthouse_server shutdown complete")
 
 app = FastAPI(
     title="LIGHTHOUSE_SERVER",
@@ -71,12 +70,9 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-print("lighthouse_server initialisation complete")
-print("lighthouse_server lifespan object: ", app.router.lifespan_context)
-print("lighthouse_server lifespan same object: ", app.router.lifespan_context is lifespan)
-
 @app.get("/", response_model=RootRead)
 async def root():
+    logger.info("Root endpoint accessed")
     return RootRead(api_version=API_VERSION, database_version=DATABASE_VERSION)
 
 # Helper functions
